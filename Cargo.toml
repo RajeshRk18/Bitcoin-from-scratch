@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 colorize = "0.1.0"
-hex = "0.4.3"
 lazy_static = "1.4.0"
 num-bigint = "0.4.3"
 num-traits = "0.2.15"

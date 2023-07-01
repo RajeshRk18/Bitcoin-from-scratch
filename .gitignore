@@ -1,2 +1,6 @@
 /target
-
+proptest-regression
+utils
+src/sec.rs
+src/finitefield.rs
+Cargo.lock

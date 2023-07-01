@@ -1,29 +1,15 @@
 mod ecc;
+mod fieldelement;
 mod finitefield;
+mod sec;
 mod traits;
+mod utils;
 
-use ecc::*;
-use finitefield::*;
 
-use num_bigint::{BigUint, BigInt};
-use num_traits::FromPrimitive;
-use rand::Rng;
 
-fn y(point: BigInt) -> (BigInt, BigInt) {
-    let m_prime: BigInt = BigInt::parse_bytes(
-        "115792089237316195423570985008687907852837564279074904382605163141518161494337".as_bytes(),
-        10,
-    )
-    .unwrap();
-
-    let x = point.clone();
-    let y = (point.pow(3) + BigInt::from_u8(7).unwrap()).sqrt() % m_prime;
-
-    (x, y)
-}
 
 fn main() {
-    let _bitcoin_curve = Secp256k1::new(7, 1);
+    /*let bitcoin_curve = Secp256k1::new(7, 1);
 
     let _ff = FiniteField::new(BigInt::from_u32(11).unwrap());
 
@@ -58,6 +44,6 @@ fn main() {
     //println!("{:?}", ff);
     let (x, y) = y(BigInt::parse_bytes("55066263022277343669578718895168534326250603453777594175500187360389116729240".as_bytes(), 10).unwrap());
 
-    println!("x: {:?}\ny: {:?}", x, y);
-
+    let res = bitcoin_curve.mul(BigInt::from_u8(1).unwrap(), (BigInt::parse_bytes("55066263022277343669578718895168534326250603453777594175500187360389116729240".as_bytes(), 10).unwrap(), BigInt::parse_bytes("32670510020758816978083085130507043184471273380659243275938904335757337482424".as_bytes(), 10).unwrap()));
+    println!("{:?}", res);*/
 }
