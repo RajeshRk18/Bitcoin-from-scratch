@@ -2,30 +2,19 @@
 
 use crate::ecc::PRIME;
 use crate::utils::*;
-use num_bigint::BigInt;
+use num_bigint::{BigUint, BigInt};
 use std::cmp::Ordering;
 use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Rem, Sub};
 
 #[derive(Debug, Clone)]
-pub struct FieldElement(BigInt);
+pub struct FieldElement(BigUint);
 
 impl FieldElement {
-    pub fn new(value: BigInt) -> Self {
+    pub fn new(value: BigUint) -> Self {
         FieldElement(value)
     }
     pub fn pow(&self, exp: u32) -> FieldElement {
         self.0.pow(exp).into()
-    }
-
-    pub fn gcd(&mut self) -> FieldElement {
-        let mut p = field_element(15);
-        while p != field_element(0) {
-            dbg!(&p);
-            let temp = p.clone();
-            p = modulus(self.clone(), p.clone());
-            *self = temp;
-        }
-        return self.clone();
     }
 }
 
@@ -68,7 +57,8 @@ impl<'a> Sub<&'a FieldElement> for &'a FieldElement {
 impl<'a> Sub<&'a FieldElement> for FieldElement {
     type Output = FieldElement;
     fn sub(self, rhs: &'a FieldElement) -> Self::Output {
-        let result = (self.0.clone() + (PRIME.0.clone() - rhs.0.clone())) % PRIME.0.clone();
+        let result: BigUint =
+            (self.0.clone() + (PRIME.0.clone() - rhs.0.clone())) % PRIME.0.clone();
         result.into()
     }
 }
@@ -167,13 +157,13 @@ impl PartialEq for FieldElement {
     }
 }
 
-impl PartialEq<i32> for FieldElement {
-    fn eq(&self, other: &i32) -> bool {
-        self == &FieldElement(BigInt::from(other.clone()))
+impl PartialEq<u32> for FieldElement {
+    fn eq(&self, other: &u32) -> bool {
+        self == &FieldElement(BigUint::from(other.clone()))
     }
 
-    fn ne(&self, other: &i32) -> bool {
-        self != &FieldElement(BigInt::from(other.clone()))
+    fn ne(&self, other: &u32) -> bool {
+        self != &FieldElement(BigUint::from(other.clone()))
     }
 }
 
@@ -200,24 +190,36 @@ impl PartialOrd for FieldElement {
 
 impl Eq for FieldElement {}
 
+impl From<BigUint> for FieldElement {
+    fn from(value: BigUint) -> Self {
+        FieldElement::new(value)
+    }
+}
+
+impl<'a> From<&'a BigUint> for FieldElement {
+    fn from(value: &'a BigUint) -> Self {
+        FieldElement::new(value.clone())
+    }
+}
+
 impl From<BigInt> for FieldElement {
     fn from(value: BigInt) -> Self {
-        FieldElement::new(value)
+        FieldElement::new(value.to_biguint().unwrap())
     }
 }
 
 impl<'a> From<&'a BigInt> for FieldElement {
     fn from(value: &'a BigInt) -> Self {
-        FieldElement::new(value.clone())
+        FieldElement::new(value.to_biguint().unwrap().clone())
     }
 }
 
 #[cfg(test)]
-mod field_element {
+mod ff_test {
     use super::*;
 
     #[test]
-    fn test_neg() {
+    fn test_neg1() {
         let neg = -field_element(34);
         assert_eq!(
             neg,
@@ -234,22 +236,39 @@ mod field_element {
     }
 
     #[test]
-    fn neg_op() {
+    fn test_neg2() {
+        debug_assert_eq!(
+            -field_element(45),
+            felt_from_str(
+                "115792089237316195423570985008687907853269984665640564039457584007908834671618",
+            )
+        );
+
+        debug_assert_eq!(
+            -felt_from_str(
+                "115792089237316195423570985008687907853269984665640564039457584007908834671618"
+            ),
+            field_element(45)
+        )
+    }
+
+    #[test]
+    fn test_neg_op() {
         let lhs = field_element(900);
         let rhs = -field_element(34);
         assert_eq!((lhs + rhs) % PRIME.clone(), field_element(866));
     }
 
     #[test]
-    fn sub() {
+    fn test_sub() {
         let lhs = field_element(45);
         let rhs = field_element(34);
         assert_eq!(lhs - rhs, field_element(11));
     }
 
     #[test]
-    fn big_neg() {
-        let lhs = -felt_from_str("115792089237316195423570985008687907853269984665640564039457584007908834671629869898598");
+    fn test_big_neg1() {
+        let lhs = -felt_from_str("115792089237316195423570985008687907853269984665640564039457584007875704570261");
         assert_eq!(lhs, felt_from_str("33130101402"));
     }
 
@@ -266,12 +285,33 @@ mod field_element {
     }
 
     #[test]
-    fn sub_exp() {
-        let lhs = field_element(-45);
-        let rhs = felt_from_str(
-            "115792089237316195423570985008687907853269984665640564039457584007908834671618",
-        );
+    fn test_two_sub() {
+        debug_assert_eq!(
+            -field_element(45) - field_element(3),
+            felt_from_str(
+                "115792089237316195423570985008687907853269984665640564039457584007908834671615"
+            )
+        )
+    }
 
-        debug_assert_eq!(lhs, rhs);
+    #[test]
+    fn test_mulassign() {
+        let mut a = field_element(5);
+        let b = field_element(34);
+        a *= b;
+        assert_eq!(a, field_element(170));
+    }
+
+    #[test]
+    fn test_partial_eq() {
+        let a = field_element(6763567);
+        let b = felt_from_str("8753976666665397589478555");
+        let c = field_element(34);
+        let d = felt_from_str("6763567");
+
+        assert!(a == d);
+        assert!(c < d);
+        assert!(b > a);
+        assert!(c <= a);
     }
 }

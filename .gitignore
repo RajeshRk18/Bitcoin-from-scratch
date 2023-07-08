@@ -1,5 +1,6 @@
-/target
-proptest-regression
+.vscode
+target
+proptest-regressions
 utils
 src/sec.rs
 src/finitefield.rs
