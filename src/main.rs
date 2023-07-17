@@ -3,7 +3,5 @@ mod fieldelement;
 mod sec;
 mod traits;
 mod utils;
-mod error;
 
-fn main() {
-}
+fn main() {}
