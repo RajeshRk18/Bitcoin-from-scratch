@@ -4,4 +4,5 @@ mod sec;
 mod traits;
 mod utils;
 
-fn main() {}
+fn main() {
+}

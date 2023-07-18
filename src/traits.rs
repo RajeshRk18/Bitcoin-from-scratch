@@ -2,26 +2,26 @@ use crate::fieldelement::FieldElement;
 
 pub trait IsEllipticCurve {
     type Affine;
-    type Projective;
+    type Jacobian;
     type Scalar;
 
     fn is_valid(&self, point: &Self::Affine) -> bool;
 
     fn is_indiscriminant() -> bool;
 
-    fn is_negative(point1: &Self::Projective, point2: &Self::Projective) -> bool;
+    fn is_negative(point1: &Self::Jacobian, point2: &Self::Jacobian) -> bool;
 
-    fn is_identity(p: &Self::Projective) -> bool;
+    fn is_identity(p: &Self::Jacobian) -> bool;
 
-    fn to_projective(&self, point: Self::Affine) -> Self::Projective;
+    fn to_jacobian(&self, point: Self::Affine) -> Self::Jacobian;
 
-    fn point_add(&self, point1: Self::Projective, point2: Self::Projective) -> Self::Projective;
+    fn point_add(point1: &Self::Jacobian, point2: &Self::Jacobian) -> Self::Jacobian;
 
-    fn point_double(&self, point: Self::Projective) -> Self::Projective;
+    fn point_double(point: &Self::Jacobian) -> Self::Jacobian;
 
-    fn scalar_gen_mul(&self, scalar: Self::Scalar) -> Self::Projective;
+    fn scalar_gen_mul(&self, scalar: Self::Scalar) -> Self::Jacobian;
 
-    fn to_affine(&self, point: Self::Projective) -> Self::Affine;
+    fn to_affine(&self, point: Self::Jacobian) -> Self::Affine;
 }
 pub trait Secp256k1Curve: IsEllipticCurve {
     fn a() -> FieldElement; // 0
@@ -38,7 +38,7 @@ pub trait Secp256k1Curve: IsEllipticCurve {
 
     fn generator() -> Self::Affine;
 
-    fn identity() -> Self::Projective;
+    fn identity() -> Self::Jacobian;
 }
 
 pub trait SecSerde {
