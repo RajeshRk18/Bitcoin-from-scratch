@@ -1,3 +1,14 @@
-# Bitcoin-from-scratch
+## TODO
 
-This project is still in WIP and the build may output errors. 
+- [x] Secp256k1 Ops
+- [ ] Seriailization
+- [ ] ECDSA Signature
+- [ ] Key Compression
+- [ ] Script
+- [ ] Consensus
+- [ ] SPV 
+- [ ] Bloom Filters
+- [ ] Segwit
+- [ ] simple HD wallet 
+
+
