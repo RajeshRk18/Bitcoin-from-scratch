@@ -1,5 +1,6 @@
 ## TODO
 
+- [x] Secp256k1 Ops
 - [ ] Seriailization
 - [ ] ECDSA Signature
 - [ ] Key Compression
@@ -9,5 +10,4 @@
 - [ ] Bloom Filters
 - [ ] Segwit
 - [ ] simple HD wallet 
-- [x] Secp256k1 Ops
 
