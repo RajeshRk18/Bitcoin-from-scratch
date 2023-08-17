@@ -41,6 +41,11 @@ pub trait Secp256k1Curve: IsEllipticCurve {
     fn identity() -> Self::Jacobian;
 }
 
+pub trait Signable: IsEllipticCurve {
+    fn sign<T: AsRef<[u8]>>(&self, data: T) -> (FieldElement, FieldElement);
+    fn verify(&self, r: FieldElement, s: FieldElement) -> FieldElement;
+}
+
 pub trait SecSerde {
     fn serialize(x: FieldElement, y: FieldElement) -> Vec<u8>;
     fn deserialize(bytes: &[u8]) -> Result<(FieldElement, FieldElement), String>;

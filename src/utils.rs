@@ -69,12 +69,12 @@ pub fn biguint_from_str(x: &str) -> BigUint {
 #[cfg(test)]
 mod util_test {
     use super::*;
-    use crate::ecc::PRIME;
+    use crate::ecc::CURVE_ORDER;
 
     #[test]
     fn inv_test() {
         let a = felt_from_str("18233444644265725414720095600783733811551140822142748479967321742263849032310");
-        debug_assert_eq!(ext_euclid(&a, &PRIME.clone()), felt_from_str("7137376184023522026654217343440040540351594155614695530712440441403759244341"));
+        debug_assert_eq!(ext_euclid(&a, &CURVE_ORDER.clone()), felt_from_str("7137376184023522026654217343440040540351594155614695530712440441403759244341"));
         debug_assert_eq!(ext_euclid(&felt_from_uint(6547445), &felt_from_str("7855654643")), felt_from_str("3482694415"));
     }
 

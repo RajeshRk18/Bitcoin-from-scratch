@@ -4,6 +4,7 @@ use crate::utils::ext_euclid;
 use num_bigint::{BigInt, BigUint};
 use std::cmp::Ordering;
 use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Rem, Sub};
+use zeroize::Zeroize;
 
 #[derive(Debug, Clone)]
 pub struct FieldElement(BigUint);
@@ -15,6 +16,10 @@ impl FieldElement {
 
     pub fn floor_div(a: &Self, b: &Self) -> Self {
         (&a.0 / &b.0).into()
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> FieldElement {
+        FieldElement(BigUint::from_bytes_le(bytes))
     }
 }
 
@@ -214,6 +219,11 @@ impl<'a> From<&'a BigInt> for FieldElement {
     }
 }
 
+impl Zeroize for FieldElement {
+    fn zeroize(&mut self) {
+        self.0 = 0u32.into();
+    }
+}
 #[cfg(test)]
 mod ff_test {
     use crate::utils::*;
@@ -297,11 +307,26 @@ mod ff_test {
     }
 
     #[test]
+    fn test_sub_itself() {
+        debug_assert_eq!(felt_from_uint(275386243) - felt_from_uint(275386243), felt_from_uint(0));
+    }
+
+    #[test]
+    fn test_sub_zero() {
+        debug_assert_eq!(felt_from_uint(275386243) - felt_from_uint(0), felt_from_uint(275386243));
+    }
+
+    #[test]
     fn test_mulassign() {
         let mut a = felt_from_uint(5);
         let b = felt_from_uint(34);
         a *= b;
         assert_eq!(a, felt_from_uint(170));
+    }
+
+    #[test]
+    fn test_mul_by_zero() {
+        debug_assert_eq!(felt_from_uint(123) * felt_from_uint(0), felt_from_uint(0));
     }
 
     #[test]
@@ -335,11 +360,11 @@ mod ff_test {
     }
 
     #[test]
-    fn test_result_one() {
+    fn test_wrap_to_one() {
         let a = felt_from_str("7137376184023522026654217343440040540351594155614695530712440441403759244341");
         let b = felt_from_str("18233444644265725414720095600783733811551140822142748479967321742263849032310");
 
-        debug_assert_eq!(a * b, felt_from_uint(3));
+        debug_assert_eq!(a * b, felt_from_uint(1));
     }
 
     #[test]
@@ -348,5 +373,10 @@ mod ff_test {
         let b = felt_from_str("12158399299693830322967808612713398636155367887041628176798871954788371653930");
 
         debug_assert_eq!(&a / &b , felt_from_str("3581453595367386406056576018017432656403623753535430210497256105630064126918"));
+    }
+
+    #[test]
+    fn test_div_by_zero() {
+        debug_assert_eq!(felt_from_uint(7245632) / felt_from_uint(0), felt_from_uint(0));
     }
 }

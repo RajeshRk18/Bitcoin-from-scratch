@@ -1,5 +1,4 @@
 target
 proptest-regressions
-src/sec.rs
 src/finitefield.rs
 Cargo.lock

@@ -1,11 +1,14 @@
 use crate::fieldelement::*;
-use crate::traits::{IsEllipticCurve, Secp256k1Curve};
+use crate::traits::{IsEllipticCurve, Secp256k1Curve, Signable};
 use crate::utils::*;
 use lazy_static::lazy_static;
 use num_bigint::BigUint;
+use zeroize::Zeroize;
+use rand_chacha::ChaCha20Rng;
+use rand::{thread_rng, CryptoRng, SeedableRng, RngCore};
 
 lazy_static! {
-    pub static ref ORDER: FieldElement = FieldElement::new(
+    pub static ref BASE_ORDER: FieldElement = FieldElement::new(
         BigUint::parse_bytes(
             "115792089237316195423570985008687907852837564279074904382605163141518161494337"
                 .as_bytes(),
@@ -13,7 +16,7 @@ lazy_static! {
         )
         .unwrap()
     );
-    pub static ref PRIME: FieldElement = FieldElement::new(
+    pub static ref CURVE_ORDER: FieldElement = FieldElement::new(
         BigUint::parse_bytes(
             "115792089237316195423570985008687907853269984665640564039457584007908834671663"
                 .as_bytes(),
@@ -68,11 +71,11 @@ impl Secp256k1Curve for Secp256k1 {
     }
 
     fn base_field_order() -> FieldElement {
-        ORDER.clone()
+        BASE_ORDER.clone()
     }
 
     fn scalar_field_order() -> FieldElement {
-        PRIME.clone()
+        CURVE_ORDER.clone()
     }
 
     fn generator() -> Self::Affine {
@@ -100,7 +103,7 @@ impl IsEllipticCurve for Secp256k1 {
     #[inline(always)]
     fn is_valid(&self, point: &Self::Affine) -> bool {
         let lhs = &point.1 * &point.1;
-        let rhs: FieldElement = &point.0 * &point.0 * &point.0 + felt_from_uint(7);
+        let rhs = &point.0 * &point.0 * &point.0 + felt_from_uint(7);
         if lhs != rhs {
             return false;
         }
@@ -119,7 +122,7 @@ impl IsEllipticCurve for Secp256k1 {
     fn is_negative(point1: &Self::Jacobian, point2: &Self::Jacobian) -> bool {
         if (&point1.0 == &point2.0)
             && (&point1.2 == &point2.2)
-            && (point1.1.clone() == -point2.1.clone())
+            && (&point1.1 == &(-&point2.1))
         {
             return true;
         }
@@ -148,7 +151,6 @@ impl IsEllipticCurve for Secp256k1 {
             let z_inv =  Self::one() / z;
             let z_inv_squared = &z_inv * &z_inv;
             let z_inv_cubed = &z_inv_squared * &z_inv;
-
             let x = x * z_inv_squared;
             let y = y * z_inv_cubed;
 
@@ -159,7 +161,7 @@ impl IsEllipticCurve for Secp256k1 {
     #[inline(always)]
     fn scalar_gen_mul(&self, scalar: BigUint) -> Self::Jacobian {
         assert!(
-            scalar != biguint_from_uint(0 as u32) && FieldElement::from(scalar.clone()) < ORDER.clone()
+            scalar != biguint_from_uint(0 as u32) && FieldElement::from(scalar.clone()) < BASE_ORDER.clone()
         );
         let mut scalar = scalar;
         let precomputes = Self::get_precomputed_table();
