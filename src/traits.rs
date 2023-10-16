@@ -32,10 +32,6 @@ pub trait Secp256k1Curve: IsEllipticCurve {
 
     fn base_field_order() -> FieldElement;
 
-    fn one() -> FieldElement;
-
-    fn zero() -> FieldElement;
-
     fn generator() -> Self::Affine;
 
     fn identity() -> Self::Jacobian;
@@ -60,4 +56,9 @@ pub trait KeyPair {
     fn new() -> Self;
     fn private_key(&self) -> FieldElement;
     fn public_key(&self) -> (FieldElement, FieldElement);
+}
+
+// Implements zeroize from scratch without depending on zeroize crate
+pub trait ZeroIt {
+    fn zeroize(&mut self);
 }

@@ -1,5 +1,5 @@
 use crate::fieldelement::*;
-use num_bigint::{ToBigUint, BigUint};
+use num_bigint::{BigUint, ToBigUint};
 
 pub fn felt_from_uint<T: ToBigUint>(value: T) -> FieldElement {
     FieldElement::new(value.to_biguint().unwrap())
@@ -39,8 +39,8 @@ pub fn ext_euclid(a: &FieldElement, b: &FieldElement) -> FieldElement {
         }
 
         s_old
-        }
     }
+}
 
 pub fn gcd(a: &FieldElement, b: &FieldElement) -> FieldElement {
     let mut a = a.clone();
@@ -73,9 +73,18 @@ mod util_test {
 
     #[test]
     fn inv_test() {
-        let a = felt_from_str("18233444644265725414720095600783733811551140822142748479967321742263849032310");
-        debug_assert_eq!(ext_euclid(&a, &CURVE_ORDER.clone()), felt_from_str("7137376184023522026654217343440040540351594155614695530712440441403759244341"));
-        debug_assert_eq!(ext_euclid(&felt_from_uint(6547445), &felt_from_str("7855654643")), felt_from_str("3482694415"));
+        let a = felt_from_str(
+            "18233444644265725414720095600783733811551140822142748479967321742263849032310",
+        );
+        debug_assert_eq!(
+            ext_euclid(&a, &CURVE_ORDER.clone()),
+            felt_from_str(
+                "7137376184023522026654217343440040540351594155614695530712440441403759244341"
+            )
+        );
+        debug_assert_eq!(
+            ext_euclid(&felt_from_uint(6547445), &felt_from_str("7855654643")),
+            felt_from_str("3482694415")
+        );
     }
-
 }

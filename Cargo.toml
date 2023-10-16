@@ -7,10 +7,11 @@ edition = "2021"
 
 [dependencies]
 lazy_static = "1.4.0"
-num-bigint = "0.4.3"
+num-bigint = { version = "0.4.3", default-features = false, features = ["std", "serde", "rand"]}
 num-traits = "0.2.15"
 rand = "0.8.5"
-zeroize = { version = "1.6.0", default-features = false, features = ["derive"] }
+serde = { version = "1.0.183", default-features = false, features = ["std", "derive"] }
 rand_chacha = "0.3.1"
+
 [profile.release]
 debug = true
