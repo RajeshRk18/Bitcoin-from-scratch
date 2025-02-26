@@ -1,8 +1,7 @@
 use crate::ecc::Secp256k1;
-use crate::traits::{Secp256k1Curve, ZeroIt};
+use crate::traits::{IsFieldElement, Secp256k1Curve, ZeroIt};
 use crate::utils::*;
-use num_bigint::{BigInt, BigUint, ToBigInt, RandomBits};
-use num_traits::FromPrimitive;
+use num_bigint::{BigUint, RandomBits};
 use rand::distributions::Distribution;
 use rand_chacha::rand_core::OsRng;
 use std::cmp::Ordering;
@@ -20,10 +19,6 @@ impl FieldElement {
         (&a.0 / &b.0).into()
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> FieldElement {
-        FieldElement(BigUint::from_bytes_le(bytes))
-    }
-
     pub fn gen_random() -> Self {
         let mut rng = OsRng {};
         let big_rand = RandomBits::new(255);
@@ -31,12 +26,18 @@ impl FieldElement {
         let value = big_rand.sample(&mut rng);
         FieldElement(value)
     }
+}
 
-    pub fn one() -> Self {
+impl IsFieldElement for FieldElement {
+    fn from_bytes(bytes: &[u8]) -> Self {
+        FieldElement(BigUint::from_bytes_le(bytes))
+    }
+
+    fn one() -> Self {
         felt_from_uint(1)
     }
 
-    pub fn zero() -> Self {
+    fn zero() -> Self {
         felt_from_uint(0)
     }
 }
@@ -165,8 +166,8 @@ impl<'a> Rem<&'a FieldElement> for &'a FieldElement {
     }
 }
 
-
 // constant time comparisions to be implemented from https://gist.github.com/sneves/10845247
+// How can we implement those operations for FieldElement with correctness?
 impl PartialEq for FieldElement {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
@@ -249,7 +250,7 @@ impl ZeroIt for FieldElement {
 
 #[cfg(test)]
 mod ff_test {
-    use crate::{ecc::Secp256k1, traits::Secp256k1Curve, utils::*, fieldelement::FieldElement};
+    use crate::{ecc::Secp256k1, fieldelement::FieldElement, traits::Secp256k1Curve, utils::*};
 
     #[test]
     fn test_negation() {
@@ -330,7 +331,9 @@ mod ff_test {
         );
 
         debug_assert_eq!(a * b, felt_from_uint(1));
-        let x = felt_from_str("76312198732308146610779301658447197634344129726058341717334777383093884774635");
+        let x = felt_from_str(
+            "76312198732308146610779301658447197634344129726058341717334777383093884774635",
+        );
         debug_assert_eq!(&x * &x, felt_from_str("0"));
     }
 

@@ -1,5 +1,5 @@
 use crate::fieldelement::*;
-use crate::traits::{IsEllipticCurve, Secp256k1Curve, Signable};
+use crate::traits::{IsEllipticCurve, IsFieldElement, Secp256k1Curve, Signable};
 use crate::utils::*;
 use lazy_static::lazy_static;
 use num_bigint::BigUint;
@@ -39,13 +39,13 @@ lazy_static! {
         )
         .unwrap()
     );
-    pub static ref PRECOMPUTED_TABLE: Vec<(FieldElement, FieldElement, FieldElement)> = get_precompute();
+    pub static ref PRECOMPUTED_TABLE: Vec<(FieldElement, FieldElement, FieldElement)> =
+        get_precompute();
 }
 
 pub struct Secp256k1;
 
 impl Secp256k1 {
-
     pub fn generator_proj() -> <Self as IsEllipticCurve>::Jacobian {
         (G_X.clone(), G_Y.clone(), felt_from_uint(1))
     }
@@ -84,11 +84,15 @@ impl Secp256k1Curve for Secp256k1 {
     }
 
     fn generator() -> Self::Affine {
-        (G_X.clone(), G_Y.clone())
+        Self::generator_affine()
     }
 
     fn identity() -> Self::Jacobian {
-        (FieldElement::one(), FieldElement::one(), FieldElement::zero())
+        (
+            FieldElement::one(),
+            FieldElement::one(),
+            FieldElement::zero(),
+        )
     }
 }
 
@@ -98,14 +102,14 @@ impl IsEllipticCurve for Secp256k1 {
     type Scalar = BigUint;
 
     #[inline(always)]
-    fn is_valid(&self, point: &Self::Affine) -> bool {
+    fn contains(&self, point: &Self::Affine) -> bool {
         let lhs = &point.1 * &point.1;
         let rhs = &point.0 * &point.0 * &point.0 + felt_from_uint(7);
-        
+
         lhs == rhs
     }
 
-    // secp256k1 params have been chosen to be non-discriminant so that it is smooth and non-singular. 
+    // secp256k1 params have been chosen to be non-discriminant so that it is smooth and non-singular.
     fn is_indiscriminant() -> bool {
         let op = -felt_from_uint(16)
             * (felt_from_uint(4) * Self::a() * Self::a() * Self::a()
@@ -115,7 +119,7 @@ impl IsEllipticCurve for Secp256k1 {
     }
 
     fn is_negative(point1: &Self::Jacobian, point2: &Self::Jacobian) -> bool {
-        (&point1.0 == &point2.0) && (&point1.2 == &point2.2) && (&point1.1 == &(-&point2.1)) 
+        (&point1.0 == &point2.0) && (&point1.2 == &point2.2) && (&point1.1 == &(-&point2.1))
     }
 
     // checks if the point is additive identity.
@@ -124,14 +128,14 @@ impl IsEllipticCurve for Secp256k1 {
     }
 
     // Performs Group Isomorphism: Maps point in Affine Space to Projective.
-    // (x, y) -> (x, y, 1)
+    // (x, y) -> (X, Y, 1)
     #[inline(always)]
     fn to_jacobian(&self, point: Self::Affine) -> Self::Jacobian {
         (point.0, point.1, FieldElement::one())
     }
 
     // Maps point in Projective Space to Affine.
-    // (x, y, z) -> (x, y)
+    // (X, Y, Z) -> (x, y)
     #[inline(always)]
     fn to_affine(&self, point: Self::Jacobian) -> Self::Affine {
         let (x, y, z) = point;
@@ -144,24 +148,24 @@ impl IsEllipticCurve for Secp256k1 {
 
         if z == FieldElement::zero() {
             return (FieldElement::zero(), FieldElement::zero());
-        } else {
-            return (x, y);
         }
+
+        (x, y)
     }
 
     #[inline(always)]
     fn scalar_gen_mul(&self, mut scalar: BigUint) -> Self::Jacobian {
         assert!(
             scalar != biguint_from_uint(0 as u32)
-                && FieldElement::from(scalar.clone()) < BASE_ORDER.clone()
+                && FieldElement::from(scalar.clone()) < CURVE_ORDER.clone()
         );
         let mut addend = Self::identity();
         //let precomputes = Self::get_precomputed_table();
 
-        let mut result: (FieldElement, FieldElement, FieldElement) = Self::generator_proj();
-        let mut dummy_point: (FieldElement, FieldElement, FieldElement) = Self::identity();
+        let mut result = Self::generator_proj();
+        let mut dummy_point = Self::identity();
 
-        for _ in 0 .. scalar.bits() {
+        for _ in 0..scalar.bits() {
             if scalar.clone() & BigUint::from_u8(1).unwrap() == BigUint::from_u8(1).unwrap() {
                 addend = Self::point_add(&addend, &result);
                 dbg!(&result);
@@ -182,13 +186,13 @@ impl IsEllipticCurve for Secp256k1 {
         for _ in 0..5 {
             t.push(Self::identity());
         }
-        
+
         t[1] = point2.clone();
         t[4] = point1.clone();
 
         let p1_is_identity = Self::is_identity(&point1);
         let p2_is_identity = Self::is_identity(&point2);
-        
+
         let (x1, y1, z1) = point1;
         let (x2, y2, z2) = point2;
 
@@ -207,7 +211,7 @@ impl IsEllipticCurve for Secp256k1 {
 
         if t1 == FieldElement::zero() {
             i = 0;
-            
+
             if t4 == FieldElement::zero() {
                 i = 2;
             }
@@ -237,7 +241,7 @@ impl IsEllipticCurve for Secp256k1 {
         }
 
         let t5 = &t2 * &t2;
-        
+
         if mask == 0 {
             t7 = x1.clone();
         }
@@ -292,105 +296,102 @@ impl IsEllipticCurve for Secp256k1 {
 
         t[i].clone()
 
+        /*if Self::is_identity(&point2) {
+            point1.clone()
+        } else if Self::is_identity(&point1) {
+            point2.clone()
+        } else {
+            let (px, py, pz) = point1;
+            let (qx, qy, qz) = point2;
 
-            /*if Self::is_identity(&point2) {
-                point1.clone()
-            } else if Self::is_identity(&point1) {
-                point2.clone()
-            } else {
-                let (px, py, pz) = point1;
-                let (qx, qy, qz) = point2;
+            let z1z1 = pz * pz;
+            let u2 = qx * pz;
+            let s2 = qy * pz;
+            let s2 = s2 * &z1z1;
 
-                let z1z1 = pz * pz;
-                let u2 = qx * pz;
-                let s2 = qy * pz;
-                let s2 = s2 * &z1z1;
-
-                if &u2 == pz && &s2 == py {
-                    return Self::point_double(point1);
-                }
-
-                let h = &u2 - px;
-                let hh = &h * &h;
-                let i = &hh + &hh;
-                let i = &i + &i;
-                let j = &h * &i;
-                let r = &s2 - &py;
-                let r = &r * &r;
-                let v = px * &i;
-                let px = &r * &r;
-                let px = px - &j;
-                let px = px - &v;
-                let j = j * py;
-                let j = &j * &j;
-                let py = &v - &px;
-                let py = py * &r;
-                let py = py - &j;
-                let pz = pz + &h;
-                let pz = &pz * &pz;
-                let pz = pz - &z1z1;
-                let pz = pz - hh;
-
-                return (px, py, pz);*/
-
-
-
-                /*let u1 = qy * pz;
-                let u2 = py * qz;
-                let v1 = qx * pz;
-                let v2 = px * qz;
-                if v1 == v2 {
-                    if u1 != u2 || *py == FieldElement::zero() {
-                        Self::identity()
-                    } else {
-                        let px_square = px * px;
-                        let three_px_square = &px_square + &px_square + &px_square;
-                        let w = Self::a() * pz * pz + three_px_square;
-                        let w_square = &w * &w;
-    
-                        let s = py * pz;
-                        let s_square = &s * &s;
-                        let s_cube = &s * &s_square;
-                        let two_s_cube = &s_cube + &s_cube;
-                        let four_s_cube = &two_s_cube + &two_s_cube;
-                        let eight_s_cube = &four_s_cube + &four_s_cube;
-    
-                        let b = px * py * &s;
-                        let two_b = &b + &b;
-                        let four_b = &two_b + &two_b;
-                        let eight_b = &four_b + &four_b;
-    
-                        let h = &w_square - &eight_b;
-                        let hs = &h * &s;
-    
-                        let pys_square = py * py * s_square;
-                        let two_pys_square = &pys_square + &pys_square;
-                        let four_pys_square = &two_pys_square + &two_pys_square;
-                        let eight_pys_square = &four_pys_square + &four_pys_square;
-    
-                        let xp = &hs + &hs;
-                        let yp = w * (four_b - &h) - eight_pys_square;
-                        let zp = eight_s_cube;
-                        (xp, yp, zp)
-                    }
-                } else {
-                    let u = u1 - &u2;
-                    let v = v1 - &v2;
-                    let w = pz * qz;
-    
-                    let u_square = &u * &u;
-                    let v_square = &v * &v;
-                    let v_cube = &v * &v_square;
-                    let v_square_v2 = &v_square * &v2;
-    
-                    let a = &u_square * &w - &v_cube - (&v_square_v2 + &v_square_v2);
-    
-                    let xp = &v * &a;
-                    let yp = u * (&v_square_v2 - &a) - &v_cube * &u2;
-                    let zp = &v_cube * &w;
-                    (xp, yp, zp)
-                }*/
+            if &u2 == pz && &s2 == py {
+                return Self::point_double(point1);
             }
+
+            let h = &u2 - px;
+            let hh = &h * &h;
+            let i = &hh + &hh;
+            let i = &i + &i;
+            let j = &h * &i;
+            let r = &s2 - &py;
+            let r = &r * &r;
+            let v = px * &i;
+            let px = &r * &r;
+            let px = px - &j;
+            let px = px - &v;
+            let j = j * py;
+            let j = &j * &j;
+            let py = &v - &px;
+            let py = py * &r;
+            let py = py - &j;
+            let pz = pz + &h;
+            let pz = &pz * &pz;
+            let pz = pz - &z1z1;
+            let pz = pz - hh;
+
+            return (px, py, pz);*/
+
+        /*let u1 = qy * pz;
+        let u2 = py * qz;
+        let v1 = qx * pz;
+        let v2 = px * qz;
+        if v1 == v2 {
+            if u1 != u2 || *py == FieldElement::zero() {
+                Self::identity()
+            } else {
+                let px_square = px * px;
+                let three_px_square = &px_square + &px_square + &px_square;
+                let w = Self::a() * pz * pz + three_px_square;
+                let w_square = &w * &w;
+
+                let s = py * pz;
+                let s_square = &s * &s;
+                let s_cube = &s * &s_square;
+                let two_s_cube = &s_cube + &s_cube;
+                let four_s_cube = &two_s_cube + &two_s_cube;
+                let eight_s_cube = &four_s_cube + &four_s_cube;
+
+                let b = px * py * &s;
+                let two_b = &b + &b;
+                let four_b = &two_b + &two_b;
+                let eight_b = &four_b + &four_b;
+
+                let h = &w_square - &eight_b;
+                let hs = &h * &s;
+
+                let pys_square = py * py * s_square;
+                let two_pys_square = &pys_square + &pys_square;
+                let four_pys_square = &two_pys_square + &two_pys_square;
+                let eight_pys_square = &four_pys_square + &four_pys_square;
+
+                let xp = &hs + &hs;
+                let yp = w * (four_b - &h) - eight_pys_square;
+                let zp = eight_s_cube;
+                (xp, yp, zp)
+            }
+        } else {
+            let u = u1 - &u2;
+            let v = v1 - &v2;
+            let w = pz * qz;
+
+            let u_square = &u * &u;
+            let v_square = &v * &v;
+            let v_cube = &v * &v_square;
+            let v_square_v2 = &v_square * &v2;
+
+            let a = &u_square * &w - &v_cube - (&v_square_v2 + &v_square_v2);
+
+            let xp = &v * &a;
+            let yp = u * (&v_square_v2 - &a) - &v_cube * &u2;
+            let zp = &v_cube * &w;
+            (xp, yp, zp)
+        }*/
+    }
 
     /*#[inline(always)]
     fn point_add(point1: &Self::Jacobian, point2: &Self::Jacobian) -> Self::Jacobian {
@@ -414,7 +415,7 @@ impl IsEllipticCurve for Secp256k1 {
         dbg!(is_negative);
         #[allow(non_snake_case)]
         let P = point1.clone();
-        
+
         let dummy_val = Self::identity();
 
         let (x1, y1, z1) = point1;
@@ -446,7 +447,7 @@ impl IsEllipticCurve for Secp256k1 {
         dbg!(&y3);
         let z3 = (z1 + &h) * (z1 + &h) - z1z1 + hh;
         dbg!(&z3);
-        
+
         if is_equal {
             return Self::point_double(&P);
         } else if is_negative {
@@ -455,8 +456,8 @@ impl IsEllipticCurve for Secp256k1 {
             return Self::identity();
         } else {
             #[allow(unused_variables)]
-            let dummy_op = Self::point_double(&dummy_val);    
-            return (x3, y3, z3);        
+            let dummy_op = Self::point_double(&dummy_val);
+            return (x3, y3, z3);
         }
     }*/
 
@@ -465,48 +466,48 @@ impl IsEllipticCurve for Secp256k1 {
         // https://www.hyperelliptic.org/EFD/oldefd/jacobian.html#DBL
 
         /*
-             XX:=X1^2;
-     YY:=Y1^2;
-     ZZ:=Z1^2;
-     S:=4*X1*YY;
-     M:=3*XX+a*ZZ^2;
-     T:=M^2-2*S;
-     X3:=T;
-     Y3:=M*(S-T)-8*YY^2;
-     Z3:=2*Y1*Z1; 
-     */
+                XX:=X1^2;
+               YY:=Y1^2;
+               ZZ:=Z1^2;
+               S:=4*X1*YY;
+               M:=3*XX+a*ZZ^2;
+               T:=M^2-2*S;
+               X3:=T;
+               Y3:=M*(S-T)-8*YY^2;
+               Z3:=2*Y1*Z1;
+        */
 
         /*let (x, y, z) = point;
 
-        let zz = z * z;
-        let 
-        let yy = y * y;
-        let yyyy = &yy * &yy;
-        let xx = x * x;
+                let zz = z * z;
+                let
+                let yy = y * y;
+                let yyyy = &yy * &yy;
+                let xx = x * x;
 
-        let s = x + &yy;
-        let s = (&s * &s - &xx - &yyyy) * felt_from_uint(2);
-        let m = &xx * &xx + &xx;
-        let z = (z + y) * (z + y) - &yy - &zz;
-        let t = &m * &m;
-        let x = t.clone();
-        let t = &s * &s;
-        let x = &x - &t;
-        let y = (s - &x) * &m;
-        let yyyy = &yyyy * &yyyy;
-        let yyyy = &yyyy * &yyyy;
-        let yyyy = &yyyy * &yyyy;
-        let y = y - yyyy;
+                let s = x + &yy;
+                let s = (&s * &s - &xx - &yyyy) * felt_from_uint(2);
+                let m = &xx * &xx + &xx;
+                let z = (z + y) * (z + y) - &yy - &zz;
+                let t = &m * &m;
+                let x = t.clone();
+                let t = &s * &s;
+                let x = &x - &t;
+                let y = (s - &x) * &m;
+                let yyyy = &yyyy * &yyyy;
+                let yyyy = &yyyy * &yyyy;
+                let yyyy = &yyyy * &yyyy;
+                let y = y - yyyy;
 
-        return (x, y, z);
-*/
+                return (x, y, z);
+        */
         let (x, y, z) = point;
 
         let t1 = z * z;
         let t2 = x + &t1;
         let t1 = x - &t1;
-        let t1  = t1 * t2;
-        let t2 =  FieldElement::floor_div(&t1, &felt_from_uint(2));
+        let t1 = t1 * t2;
+        let t2 = FieldElement::floor_div(&t1, &felt_from_uint(2));
         let t1 = &t1 + &t2;
         let t2 = y * y;
         let t3 = x * &t2;
@@ -514,15 +515,14 @@ impl IsEllipticCurve for Secp256k1 {
         let t4 = t4 - &t3;
         let x1 = &t4 - &t3;
         let z1 = y * z;
-        let t2 = &t2 * &t2; 
+        let t2 = &t2 * &t2;
         let t4 = t3 - &x1;
         let t1 = t1 * t4;
         let y1 = t1 - t2;
 
         (x1, y1, z1)
 
-        
-        /*dbg!(&point);        
+        /*dbg!(&point);
         let (x, y, z) = point;
         dbg!(&x);
         let xx = x * x;
@@ -547,7 +547,7 @@ impl IsEllipticCurve for Secp256k1 {
 }
 
 pub fn get_precompute() -> Vec<(FieldElement, FieldElement, FieldElement)> {
-    let mut base = (G_X.clone(), G_Y.clone(), felt_from_uint(1));
+    let mut base = Secp256k1::generator_proj();
 
     let mut precomputes = Vec::with_capacity(256);
     precomputes.push(base.clone());
@@ -560,7 +560,7 @@ pub fn get_precompute() -> Vec<(FieldElement, FieldElement, FieldElement)> {
     precomputes
 }
 
-#[cfg(test)]    
+#[cfg(test)]
 mod ecc_test {
     use super::*;
 
@@ -570,7 +570,10 @@ mod ecc_test {
 
         let curve = Secp256k1 {};
 
-        assert_eq!(curve.to_affine(Secp256k1::point_double(&Secp256k1::generator_proj())), Secp256k1::generator());
+        assert_eq!(
+            curve.to_affine(Secp256k1::point_double(&Secp256k1::generator_proj())),
+            Secp256k1::generator()
+        );
 
         assert_eq!(
             curve.mul(biguint_from_str("2")),

@@ -1,11 +1,10 @@
 use crate::fieldelement::FieldElement;
-
 pub trait IsEllipticCurve {
     type Affine;
     type Jacobian;
     type Scalar;
 
-    fn is_valid(&self, point: &Self::Affine) -> bool;
+    fn contains(&self, point: &Self::Affine) -> bool;
 
     fn is_indiscriminant() -> bool;
 
@@ -23,6 +22,7 @@ pub trait IsEllipticCurve {
 
     fn to_affine(&self, point: Self::Jacobian) -> Self::Affine;
 }
+
 pub trait Secp256k1Curve: IsEllipticCurve {
     fn a() -> FieldElement; // 0
 
@@ -37,6 +37,17 @@ pub trait Secp256k1Curve: IsEllipticCurve {
     fn identity() -> Self::Jacobian;
 }
 
+pub trait IsFieldElement {
+    fn from_bytes(bytes: &[u8]) -> Self;
+
+    fn one() -> Self;
+
+    fn zero() -> Self;
+}
+
+pub trait IsAffinePoint {}
+
+pub trait IsJacobianPoint {}
 pub trait Signable: IsEllipticCurve {
     fn sign<T: AsRef<[u8]>>(&self, data: T) -> (FieldElement, FieldElement);
     fn verify(&self, r: FieldElement, s: FieldElement) -> FieldElement;
@@ -47,7 +58,7 @@ pub trait SecSerde {
     fn deserialize(bytes: &[u8]) -> Result<(FieldElement, FieldElement), String>;
 }
 
-pub trait Compression: IsEllipticCurve {
+pub trait Compressable: IsEllipticCurve {
     fn compress(point: Self::Affine) -> Vec<u8>;
     fn decompress(bytes: &[u8]) -> Result<Self::Affine, String>;
 }
